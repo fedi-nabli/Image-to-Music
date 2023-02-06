@@ -88,3 +88,28 @@ def maske_scale(which_octave, which_key, which_scale):
   
   return freqs
 
+# Convert Hue value to a frequency
+def hue2freq(h, scale_freqs):
+  # Initializing variables
+  thresholds = [26, 52, 78, 104, 128, 154, 180]
+  note = 0
+
+  if (h <= thresholds[0]):
+    note = scale_freqs[0]
+  elif (h > thresholds[0]) & (h <= thresholds[1]):
+    note = scale_freqs[1]
+  elif (h > thresholds[1]) & (h <= thresholds[2]):
+    note = scale_freqs[2]
+  elif (h > thresholds[2]) & (h <= thresholds[3]):
+    note = scale_freqs[3]
+  elif (h > thresholds[3]) & (h <= thresholds[4]):
+    note = scale_freqs[4]
+  elif (h > thresholds[4]) & (h <= thresholds[5]):
+    note = scale_freqs[5]
+  elif (h > thresholds[5]) & (h <= thresholds[6]):
+    note = scale_freqs[6]
+  else:
+    note = scale_freqs[0]
+
+  return note
+
