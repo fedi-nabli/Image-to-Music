@@ -18,38 +18,38 @@ from scipy.io import wavfile
 import librosa
 import glob
 
-# This functions generates frequencies in Hertz from notes
-def get_piano_notes():
-  # White keys are in uppercasae and sharp keys (blacks) are in lowercase
-  octave = ['C', 'c', 'D', 'd', 'E', 'F', 'G', 'g', 'A', 'a', 'B']
-  base_freq = 440 # Frequency of not A4
-  keys = np.array([x+str(y) for y in range(0, 9) for x in octave])
-  
-  #Trim to standard 88 keys
+# This function generates frequencies in Hertz from notes
+def get_piano_notes():   
+  # White keys are in Uppercase and sharp keys (blacks) are in lowercase
+  octave = ['C', 'c', 'D', 'd', 'E', 'F', 'f', 'G', 'g', 'A', 'a', 'B'] 
+  base_freq = 440 # Frequency of Note A4
+  keys = np.array([x+str(y) for y in range(0,9) for x in octave])
+  # Trim to standard 88 keys
   start = np.where(keys == 'A0')[0][0]
   end = np.where(keys == 'C8')[0][0]
   keys = keys[start:end+1]
-
+  
   note_freqs = dict(zip(keys, [2**((n+1-49)/12)*base_freq for n in range(len(keys))]))
-  note_freqs[''] = 0.0 #stop
+  note_freqs[''] = 0.0 # stop
   return note_freqs
 
 # Make scale as specified by the user
-def maske_scale(which_octave, which_key, which_scale):
-  # Load not distionary
+def make_scale(which_octave, which_key, which_scale):
+  # Load note dictionary
   note_freqs = get_piano_notes()
-
-  # Define tones. Uppercase is white keys and lowercase is black keys
-  scale_intervals = ['A', 'a', 'B', 'C', 'c', 'D', 'd', 'E', 'F', 'G', 'g']
-
-  # Find index of desired keys
+  
+  # Define tones. Upper case are white keys in piano. Lower case are black keys
+  scale_intervals = ['A','a','B','C','c','D','d','E','F','f','G','g']
+  
+  # Find index of desired key
   index = scale_intervals.index(which_key)
-
-  # Redefine scale intervals so that scale intervals begin with which_key
+  
+  # Redefine scale interval so that scale intervals begins with which_key
   new_scale = scale_intervals[index:12] + scale_intervals[:index]
   
   # Choose scale
   scale = []
+
   if which_scale == 'AEOLIAN':
     scale = [0, 2, 3, 5, 7, 8, 10]
   elif which_scale == 'BLUES':
@@ -68,24 +68,23 @@ def maske_scale(which_octave, which_key, which_scale):
     scale = [0, 2, 4, 5, 7, 9, 11]
   elif which_scale == 'MELODIC_MINOR':
     scale = [0, 2, 3, 5, 7, 8, 9, 10, 11]
-  elif which_scale == 'MINOR':
+  elif which_scale == 'MINOR':    
     scale = [0, 2, 3, 5, 7, 8, 10]
-  elif which_scale == 'MIXOLYDIAN':
+  elif which_scale == 'MIXOLYDIAN':     
     scale = [0, 2, 4, 5, 7, 9, 10]
-  elif which_scale == 'NATURAL_MINOR':
+  elif which_scale == 'NATURAL_MINOR':   
     scale = [0, 2, 3, 5, 7, 8, 10]
   elif which_scale == 'PENTATONIC':
     scale = [0, 2, 4, 7, 9]
   else:
     print('Invalid scale name')
   
-  # Initialize arrays
+  #Initialize arrays
   freqs = []
   for i in range(len(scale)):
-    note = new_scale[scale[i]] + str(which_octave)
-    freq_to_add = note_freqs[note]
-    freqs.append(freq_to_add)
-  
+      note = new_scale[scale[i]] + str(which_octave)
+      freqToAdd = note_freqs[note]
+      freqs.append(freqToAdd)
   return freqs
 
 # Convert Hue value to a frequency
@@ -128,7 +127,7 @@ def img2music(img, scale = [220.00, 246.94 ,261.63, 293.66, 329.63, 349.23, 415.
     song   :     (array) Numpy array of frequencies. Can be played by ipd.Audio(song, rate = sr)
   """
   # Convert image to HSV
-  hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
+  hsv = cv2.cvtColor(img, cv2.COLOR_RGB2HSV)
 
   # Get shape of image
   height, width, depth = img.shape
@@ -147,7 +146,7 @@ def img2music(img, scale = [220.00, 246.94 ,261.63, 293.66, 329.63, 349.23, 415.
     for val in range(n_pixels):
       i = random.randint(0, height-1)
       j = random.randint(0, width-1)
-      hue = abs(hsv[i][j][0])
+      hue = abs(hsv[i][j][0]) # This is the hue value at pixel coordinate (i,j)
       hues.append(hue)
 
   # Make dataframe containing hues and frequencies
@@ -159,7 +158,7 @@ def img2music(img, scale = [220.00, 246.94 ,261.63, 293.66, 329.63, 349.23, 415.
   pixels_df['notes'] = pixels_df.apply(lambda row : librosa.hz_to_note(row['frequencies']), axis=1) # type: ignore
 
   # Convert note to a midi number
-  pixels_df['midi_number'] = pixels_df.apply(lambda row : librosa.hz_to_midi(row['notes']), axis=1)
+  pixels_df['midi_number'] = pixels_df.apply(lambda row : librosa.note_to_midi(row['notes']), axis=1) # type: ignore
 
   # Make harmony disctionary
   # unison           = U0 ; semitone        = ST ; major second     = M2
@@ -182,13 +181,14 @@ def img2music(img, scale = [220.00, 246.94 ,261.63, 293.66, 329.63, 349.23, 415.
                     'O8': 2}
   
   harmony = np.array([]) # This array will contain the song harmony
-  harmony_val = harmony_select[harmonize] # This will select the ration for the desired harmony
-
-  song = np.array([]) # This array will contain the chosen frquencies in our song
-  octaves = np.array([0.5, 1, 2]) # Go an octave below, same song or an octave higher
+  harmony_val = harmony_select[harmonize] # This will select the ratio for the desired harmony
+                                              
+  # song_freqs = np.array([]) # This array will contain the chosen frequencies used in our song
+  song = np.array([]) # This array will contain the song signal
+  octaves = np.array([0.5,1,2]) # Go an octave below, same note, or go an octave above
   t = np.linspace(0, T, int(T*sr), endpoint=False) # time variable
 
-  # Make a sing with numpy array
+  # Make a song with numpy array
   for k in range(n_pixels):
     if use_octaves:
       octave = random.choice(octaves)
@@ -199,8 +199,8 @@ def img2music(img, scale = [220.00, 246.94 ,261.63, 293.66, 329.63, 349.23, 415.
       val = octave * frequencies[k]
     else:
       val = octave * random.choice(frequencies)
-    
-    # Make note and hormony note
+
+    # Make note and harmony note    
     note = 0.5*np.sin(2*np.pi*val*t)
     h_note = 0.5*np.sin(2*np.pi*harmony_val*val*t)
 
@@ -210,3 +210,197 @@ def img2music(img, scale = [220.00, 246.94 ,261.63, 293.66, 329.63, 349.23, 415.
 
   return song, pixels_df, harmony
 
+# Adding an appropriate title for the test website
+st.title("Making Music from Images")
+st.markdown("This little app converts an image into a song. Play around with the various inputs below using different images!")
+
+# Making dropdown select box containing scale, key and octave choices
+df1 = pd.DataFrame({'Scale_Choice': ['AEOLIAN', 'BLUES', 'PHYGIRIAN', 'CHROMATIC', 'DORIAN', 'HARMONIC_MINOR', 'LYDIAN', 'MAJOR', 'MELODIC_MINOR', 'MINOR', 'MIXOLYDIAN', 'NATURAL_MINOR', 'PENTATONIC']})
+df2 = pd.DataFrame({'Keys': ['A', 'a', 'B', 'C', 'c', 'D', 'd', 'E', 'F', 'f', 'G', 'g']})
+df3 = pd.DataFrame({'Octaves': [1, 2, 3]})
+df4 = pd.DataFrame({'Harmonies': ['U0', 'ST', 'M2', 'm3', 'M3', 'P4', 'DT', 'P5', 'm6', 'M6', 'm7', 'M7', 'O8']})
+
+st.sidebar.markdown("Select sample image if you'd like to use one of the preloaded images. Select User Image is you'd like to use your own image.")
+_radio = st.sidebar.radio("", ("Use Sample Image", "User User Image"))
+
+sample_images = glob.glob('*.jpg')
+samp_imgs_df = pd.DataFrame(sample_images, columns=['Images'])
+samp_img = st.sidebar.selectbox('Choose a sample image', samp_imgs_df['Images'])
+
+# Load image
+user_data = st.sidebar.file_uploader(label="Upload your own Image")
+if _radio == "Use Sample Image":
+  img2load = samp_img
+elif _radio == "User User Image":
+  img2load = user_data
+
+# Display the image
+st.sidebar.image(img2load) # type: ignore
+
+col1, col2, col3, col4 = st.columns(4)
+
+# Variables
+scale = ''
+key = ''
+octave = 0
+harmony = ''
+
+with col1:
+  scale = st.selectbox('What scale would you loke to use?', df1['Scale_Choice'])
+
+  'You selected the ' + scale + ' scale' # type: ignore
+with col2:
+  key = st.selectbox('What key would you like to use?', df2['Keys'])
+
+  'You selected: ', key # type: ignore
+with col3:
+  octave = st.selectbox('What octave would you like to use?', df3['Octaves'])
+
+  'You selected: ', octave # type: ignore
+with col4:
+  harmony = st.selectbox('What harmony would you like to use?', df4['Harmonies'])
+
+  'You selected: ', harmony # type: ignore
+
+col5, col6 = st.columns(2)
+with col5:
+  # Ask user if they want to use random pixels
+  random_pixels = st.checkbox('Use random pixels to build song?', value=True)
+with col6:
+  # Ask user to select song duration
+  use_octaves = st.checkbox('Randomize note octaves while building song?', value=True)
+
+col7, col8 = st.columns(2)
+with col7:
+  # Ask user to select song duration
+  t_value = st.slider('Note duration [s]', min_value=0.01, max_value=1.0, step=0.01, value=0.2)
+with col8:
+  # Ask user to select pixel number
+  n_pixels = st.slider('How many pixels to use? (More pixels take longer)', min_value=12, max_value=320, step=1, value=60)
+
+# *** Start Pedalboard Definitions ***
+st.markdown("## Pedalboard")
+col9, col10, col11, col12 = st.columns(4)
+
+# Chorus Parameters
+with col9:
+  st.markdown("### Chorus Parameters")
+  rate_hz_chorus = st.slider('rate_hz', min_value=0.0, max_value=100.0, step=0.1, value=0.0)
+
+# Delay Parameters
+with col10:
+  st.markdown("### Delay Parameters")
+  delay_seconds = st.slider('delay_seconds', min_value=0.0, max_value=2.0, step=0.1, value=0.0)
+
+# Distortion Parameters
+with col11:
+  st.markdown("### Distortion Parameters")
+  drive_db = st.slider('drive_db', min_value=0.0, max_value=100.0, step=1.0, value=0.0)
+
+# Gain Parameters
+with col12:
+  st.markdown("### Gain Parameters")
+  gain_db = st.slider('gain_db', min_value=0.0, max_value=100.0, step=1.0, value=0.0)
+
+st.markdown("### Reverd Parameters")
+rev1, rev2, rev3, rev4, rev5 = st.columns(5)
+# Reverb Parameters
+
+with rev1:
+  room_size = st.slider('room_size', min_value=0.0, max_value=1.0, step=0.1, value=0.0)
+with rev2:
+  damping = st.slider('damping', min_value=0.0, max_value=1.0, step=0.1, value=0.0)
+with rev3:
+  wet_level = st.slider('wet_level', min_value=0.1, max_value=1.0, step=0.1, value=0.1)
+with rev4:
+  dry_level = st.slider('dry_level', min_value=0.1, max_value=1.0, step=0.1, value=0.1)
+with rev5:
+  width = st.slider('width', min_value=0.0, max_value=1.0, step=0.1, value=0.0)
+
+st.markdown("### Ladder Filter Parameters")
+lf1, lf2, lf3 = st.columns(3)
+# Ladder Filter Parameters
+with lf1:
+  cutoff_hz = st.slider('cutoff_hz', min_value=0.0, max_value=1000.0, step=1.0, value=0.0)
+with lf2:
+  resonance_lad =st.slider('resonanace', min_value=0.0, max_value=1.0, step=0.1, value=0.0)
+with lf3:
+  drive_lad = st.slider('drive', min_value=1.0, max_value=100.0, step=0.1, value=1.0)
+
+#st.markdown("### Phaser Parameters")
+ch1, ps1 = st.columns(2)
+# Phaser Parameters
+with ch1:
+  st.markdown("### Phaser Parameters")
+  rate_hz_phaser = st.slider('rate_hz_phaser', min_value=0.0, max_value=100.0, step=0.1, value=0.0)
+  depth_phaser = st.slider('depth', min_value=0.0, max_value=1.0, step=0.1, value=0.0)
+with ps1:
+  st.markdown("### Pitch Shift Parameters")
+  semitones = st.slider('semitones', min_value=0.0, max_value=12.0, step=1.0, value=0.0)
+
+# Making the required prediction
+if img2load is not None: # type: ignore
+  # Saves
+  img = Image.open(img2load) # type: ignore
+  img = img.convert('RGB')
+  img = img.save("img.jpg")
+
+  # OpenCv Read
+  img = cv2.imread("img.jpg")
+  img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+
+  # Display the image
+  # st.image(img)
+
+  # Make the scale from parameters above
+  scale_to_use = make_scale(octave, key, scale)
+
+  # Make the song!
+  song, song_df, harmony = img2music(img, scale=scale_to_use, T=t_value, random_pixels=random_pixels, use_octaves=use_octaves, n_pixels=n_pixels, harmonize=harmony) # type: ignore
+
+  # Write the song into a file
+  song_combined = np.vstack((song, harmony))
+  wavfile.write('song.wav', rate=22050, data=song_combined.T.astype(np.float32))
+
+  audio_file = open('song.wav', 'rb')
+  audio_bytes = audio_file.read()
+
+  # Read it a whole audio file
+  with AudioFile('song.wav', 'r') as f:
+    audio = f.read(f.frames)
+    samplerate = f.samplerate
+
+  # Make a Pedalboard object, containing multiple plugins
+  board = Pedalboard([
+    Gain(gain_db=gain_db),
+    Distortion(drive_db=drive_db),
+    LadderFilter(mode=LadderFilter.Mode.HPF12, cutoff_hz=cutoff_hz, resonance=resonance_lad, drive=drive_lad),
+    Delay(delay_seconds=delay_seconds),
+    Reverb(room_size=room_size, wet_level=wet_level, dry_level=dry_level, width=width),
+    Phaser(rate_hz=rate_hz_phaser, depth=depth_phaser),
+    PitchShift(semitones=semitones),
+    Chorus(rate_hz=rate_hz_chorus)
+  ])
+
+  # Run the audio through this pedalboard
+  effected = board(audio, samplerate)
+
+  # Write the audio back as a wav file
+  with AudioFile('processed_song.wav', 'w', samplerate, effected.shape[0]) as f:
+    f.write(effected)
+
+  # Read the processed song
+  audio_file2 = open('processed_song.wav', 'rb')
+  audio_bytes2 = audio_file2.read()
+
+  # Play the processed song
+  st.audio(audio_bytes2, format='audio/wav')
+
+  # @st.cache
+  def convert_df_to_csv(df):
+    # IMPORTANT: Cache the conversion to prevent computation on every rerun
+    return df.to_csv().encode('utf-8')
+  st.download_button('Download Song as CSV', data=convert_df_to_csv(song_df), file_name="song.csv", mime='text/csv', key="download-csv")
+# While no image is uploaded
+else:
+  st.write("Waiting for an image to be uploaded...")
